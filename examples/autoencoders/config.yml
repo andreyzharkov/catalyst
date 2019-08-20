@@ -1,0 +1,97 @@
+model_params:
+  model: YAE
+  ch_in: 3
+  n_classes: 10
+  implicit_dim: 10
+  ch_base: 16
+
+
+args:
+  expdir: "autoencoders"
+  logdir: "./logs/autoencoders/yae"
+
+
+stages:
+
+  data_params:
+    batch_size: 64
+    num_workers: 1
+
+  state_params:
+    num_epochs: 10
+#    main_metric: &reduce_metric accuracy01
+#    minimize_metric: False
+    main_metric: "losses/loss"
+    minimize_metric: True
+    checkpoint_data:
+      exp: "thin is my best experiments"
+      date: "today"
+
+  criterion_params:
+    _key_value: True
+    reconstruction:
+      criterion: ReconstructionLoss
+    classification:
+      criterion: CrossEntropyLoss
+    explicit:
+      criterion: CrossEntropyLoss
+    implicit:
+      criterion: PredictionMeanLoss
+
+  scheduler_params:
+    scheduler: MultiStepLR
+    milestones: [10]
+    gamma: 0.3
+
+  callbacks_params:
+    loss_reconstruction:
+      callback: CriterionCallback
+      input_key: "images"
+      output_key: "images_a"
+      prefix: "loss/reconstruction"
+      criterion_key: "reconstruction"
+      multiplier: 1.0
+
+    loss_classification:
+      callback: CriterionCallback
+      input_key: "targets_a"
+      output_key: "expl_a"
+      prefix: "loss/classification"
+      criterion_key: "classification"
+      multiplier: 1.0
+
+    loss_explicit:
+      callback: CriterionCallback
+      input_key: "targets_b"
+      output_key: "expl_b"
+      prefix: "loss/explicit"
+      criterion_key: "explicit"
+      multiplier: 0.1
+
+    loss_implicit:
+      callback: CriterionCallback
+      input_key: "images"  # anything, this key does not matter
+      output_key: "impl_loss"  # already computed loss value key
+      prefix: "loss/implicit"
+      criterion_key: "implicit"
+      multiplier: 0.1
+
+    optimizer:
+      callback: OptimizerCallback
+      prefix: "losses/loss"
+#    accuracy:
+#      callback: AccuracyCallback
+#      accuracy_args: [1, 3, 5]
+#    scheduler:
+#      callback: SchedulerCallback
+#      reduce_metric: *reduce_metric
+    saver:
+      callback: CheckpointCallback
+
+  stage1:
+
+    optimizer_params:
+      optimizer: Adam
+      lr: 0.001
+      weight_decay: 0.0001
+      no_bias_weight_decay: False # leaves `weight_decay` for model's biases

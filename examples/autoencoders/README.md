@@ -1,28 +1,17 @@
-## Catalyst.DL – cifar10 example
+## Catalyst.DL – cifar10 Y-AE example
+
+https://arxiv.org/pdf/1907.10949.pdf
 
 ### Local run
 
 ```bash
-catalyst-dl run --config=./cifar_simple/config.yml
+catalyst-dl run --config=./autoencoders/config.yml
 ```
-
-### Docker run
-
-For more information about docker image goto `catalyst/docker`.
-
-```bash
-export LOGDIR=$(pwd)/logs/cifar_simple
-docker run -it --rm \
-   -v $(pwd):/workspace -v $LOGDIR:/logdir/ \
-   catalyst-base \
-   catalyst-dl run --config=./cifar_simple/config.yml --logdir=/logdir
-```
-
 
 ### Training visualization
 
 For tensorboard visualization use 
 
 ```bash
-CUDA_VISIBLE_DEVICE="" tensorboard --logdir=./logs/cifar_simple
+CUDA_VISIBLE_DEVICE="" tensorboard --logdir=./logs/autoencoders
 ```

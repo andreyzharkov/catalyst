@@ -8,6 +8,9 @@ import numpy as np
 
 
 class YAEDataset(TorchDataset):
+    """
+    Custom dataset which yields (image, target, random_target) instead of (image, target)
+    """
     def __init__(self, inner_dataset, n_classes=10):
         super().__init__()
         self.inner_dataset = inner_dataset

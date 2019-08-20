@@ -4,97 +4,25 @@ import torch.nn.functional as F
 
 from catalyst.dl import registry
 
-
-from typing import Any, Mapping, Dict, List, Union
-from collections import OrderedDict  # noqa F401
-
-from torch import nn
-from torch.utils.data import DataLoader  # noqa F401
-
-from catalyst.dl.core import Runner, Callback
-from catalyst.dl.experiment import SupervisedExperiment
-from catalyst.dl.callbacks import InferCallback, CheckpointCallback
-from catalyst.dl.utils.torch import _Model, _Criterion, _Optimizer, _Scheduler
-
-
-class YAERunner(Runner):
-    # _default_experiment = SupervisedExperiment
-
-    def __init__(
-        self,
-        model: nn.Module = None,
-        device=None,
-        input_key: tuple = ("images", "targets_a", "targets_b"),
-        output_key: tuple = ("images_a", "images_b",
-                             "L_reconstruction", "L_implicit", "L_explicit", "L_classification"),
-        input_target_key: str = "targets",
-        classification_weight = None
-    ):
-        """
-        @TODO update docs
-        Args:
-            input_key: Key in batch dict mapping to model input
-            output_key: Key in output dict model output will be stored under
-        """
-        super().__init__(model=model, device=device)
-        self.input_key = input_key
-        self.output_key = output_key
-        # self.target_key = input_target_key
-
-        self._classification_loss = nn.NLLLoss(weight=classification_weight)
-
-        # self._process_input = self._process_input_none
-        # self._process_output = self._process_output_none
-
-        # if isinstance(self.input_key, str):
-        #     self._process_input = self._process_input_str
-        # elif isinstance(self.input_key, (list, tuple)):
-        #     self._process_input = self._process_input_list
-        # else:
-        #     self._process_input = self._process_input_none
-        #
-        # if isinstance(output_key, str):
-        #     self._process_output = self._process_output_str
-        # elif isinstance(output_key, (list, tuple)):
-        #     self._process_output = self._process_output_list
-        # else:
-        #     self._process_output = self._process_output_none
-
-    def _batch2device(self, batch: Mapping[str, Any], device):
-        batch = super()._batch2device(batch, device)
-        assert len(batch) == len(self.input_key)
-        return dict((k, v) for k, v in zip(self.input_key, batch))
-
-    def predict_batch(self, batch: Mapping[str, Any]):
-        images = batch["images"]
-        targets_a = batch["targets_a"]
-        targets_b = batch["targets_b"]
-
-        enc = self.model.encoder
-        dec = self.model.decoder
-        #
-        expl_a, impl_a = enc(images)
-
-        images_a = dec(targets_a, impl_a)
-        expl_aa, impl_aa = enc(images_a)
-
-        images_b = dec(targets_b, impl_a)
-        expl_ab, impl_ab = enc(images_b)
-
-        impl_loss = ((impl_aa - impl_ab) ** 2).mean()
-        return {
-            'images_a': images_a,
-            'images_b': images_b,
-            'expl_a': expl_a,  # logits for targets_a
-            'expl_b': expl_ab,  # logits for targets_b
-            'impl_loss': impl_loss
-        }
+################################################
+# criterions ###################################
+################################################
 
 
 @registry.Criterion
 class PredictionMeanLoss(nn.Module):
     def forward(self, x, y):
         return torch.mean(x)
+
+
+@registry.Criterion
+class ReconstructionLoss(nn.MSELoss):
+    pass
+
+
+################################################
+# modules ######################################
+################################################
 
 
 @registry.Module
@@ -184,6 +112,11 @@ class SimpleEncoder(nn.Module):
         return x_explicit, x_implicit
 
 
+################################################
+# models #######################################
+################################################
+
+
 @registry.Model
 class YAE(nn.Module):
     def __init__(self, ch_in=1, n_classes=10, implicit_dim=10, image_resolution=(32, 32), ch_base=16):
@@ -202,8 +135,3 @@ class YAE(nn.Module):
     def forward(self, x):
         x_explicit, x_implicit = self.encoder(x)
         return self.decoder(torch.argmax(x_explicit, dim=-1), x_implicit)
-
-
-@registry.Criterion
-class ReconstructionLoss(nn.MSELoss):
-    pass

@@ -19,12 +19,10 @@ stages:
 
   state_params:
     num_epochs: 10
-#    main_metric: &reduce_metric accuracy01
-#    minimize_metric: False
-    main_metric: "losses/loss"
+    main_metric: "loss/loss"
     minimize_metric: True
     checkpoint_data:
-      exp: "thin is my best experiments"
+      exp: "this is my best experiments"
       date: "today"
 
   criterion_params:
@@ -55,7 +53,7 @@ stages:
     loss_classification:
       callback: CriterionCallback
       input_key: "targets_a"
-      output_key: "expl_a"
+      output_key: "logits_a"
       prefix: "loss/classification"
       criterion_key: "classification"
       multiplier: 1.0
@@ -63,7 +61,7 @@ stages:
     loss_explicit:
       callback: CriterionCallback
       input_key: "targets_b"
-      output_key: "expl_b"
+      output_key: "logits_b"
       prefix: "loss/explicit"
       criterion_key: "explicit"
       multiplier: 0.1
@@ -71,20 +69,23 @@ stages:
     loss_implicit:
       callback: CriterionCallback
       input_key: "images"  # anything, this key does not matter
-      output_key: "impl_loss"  # already computed loss value key
+      output_key: "implicit_loss"  # already computed loss value key
       prefix: "loss/implicit"
       criterion_key: "implicit"
       multiplier: 0.1
 
+    visualizer:
+      callback: VisualizationCallback
+      input_keys: "images"
+      output_keys: ["images_a", "images_b"]
+      n_row: 1
+      batch_frequency: 25
+      max_images: 20
+
+
     optimizer:
       callback: OptimizerCallback
-      prefix: "losses/loss"
-#    accuracy:
-#      callback: AccuracyCallback
-#      accuracy_args: [1, 3, 5]
-#    scheduler:
-#      callback: SchedulerCallback
-#      reduce_metric: *reduce_metric
+      prefix: "loss/loss"
     saver:
       callback: CheckpointCallback
 

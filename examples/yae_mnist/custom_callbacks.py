@@ -47,9 +47,9 @@ class VisualizationCallback(Callback):
 
         self.concat_images = concat_images
         self.max_images = max_images
-        if denorm == 'default':
+        if denorm.lower() == 'default':
             self.denorm = lambda x: x / 2 + .5  # normalization from [-1, 1] to [0, 1] (the latter is valid for tb)
-        elif denorm is None:
+        elif denorm is None or denorm.lower() == 'none':
             self.denorm = lambda x: x
         else:
             raise ValueError("unknown denorm fn")
@@ -92,7 +92,6 @@ class VisualizationCallback(Callback):
             batch_images = batch_images[:self.max_images]
             image = torchvision.utils.make_grid(batch_images, nrow=self._n_row)
             tb_logger.add_image(key, image, global_step=state.step)
-        tb_logger.flush()
 
     def visualize(self, state):
         visualizations = self.compute_visualizations(state)

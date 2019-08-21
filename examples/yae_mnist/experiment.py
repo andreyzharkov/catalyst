@@ -30,21 +30,22 @@ class Experiment(ConfigExperiment):
     def get_transforms(stage: str = None, mode: str = None):
         return transforms.Compose(
             [
+                transforms.Resize(32),
                 transforms.ToTensor(),
-                transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
+                transforms.Normalize((0.5, ), (0.5, ))
             ]
         )
 
     def get_datasets(self, stage: str, **kwargs):
         datasets = OrderedDict()
 
-        trainset = torchvision.datasets.CIFAR10(
+        trainset = torchvision.datasets.MNIST(
             root="./data",
             train=True,
             download=True,
             transform=Experiment.get_transforms(stage=stage, mode="train")
         )
-        testset = torchvision.datasets.CIFAR10(
+        testset = torchvision.datasets.MNIST(
             root="./data",
             train=False,
             download=True,

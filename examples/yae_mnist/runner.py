@@ -1,6 +1,7 @@
 from typing import Any, Mapping
 
-from torch import nn
+import torch
+import torch.nn as nn
 
 from catalyst.dl.core import Runner
 
@@ -31,6 +32,7 @@ class YAERunner(Runner):
             output_implicit_loss_key=OUTPUT_IMPLICIT_LOSS_KEY
     ):
         """
+        Custom runner
 
         :param model: model
             with .encoder(x) -> x_explicit, x_implicit
@@ -81,7 +83,7 @@ class YAERunner(Runner):
         images_b = dec(targets_b, impl_a)
         expl_ab, impl_ab = enc(images_b)
 
-        impl_loss = ((impl_aa - impl_ab) ** 2).mean()
+        impl_loss = torch.norm(impl_aa - impl_ab, dim=1)
         return {
             self.output_images_a_key: images_a,
             self.output_images_b_key: images_b,

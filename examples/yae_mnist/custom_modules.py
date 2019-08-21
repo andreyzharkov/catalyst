@@ -1,6 +1,5 @@
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 
 from catalyst.dl import registry
 
@@ -47,28 +46,31 @@ class SimpleDecoder(nn.Module):
         super().__init__()
         assert res_out == (32, 32)
         self.embedding = nn.Embedding(num_embeddings=n_classes, embedding_dim=embedding_dim)
-        dense_dim = 100
+        bn_momentum = 0.1
         self.net = nn.Sequential(
-            nn.Linear(embedding_dim + implicit_dim, dense_dim),
-            nn.BatchNorm1d(dense_dim),
+            nn.Linear(embedding_dim + implicit_dim, (ch_base * 4) * 2 * 2),
+            Reshape((ch_base * 4, 2, 2)),
+            # 2x2
+            nn.BatchNorm2d(ch_base * 4, momentum=bn_momentum),
             nn.ReLU(),
-            nn.Linear(dense_dim, ch_base * 4 * 4),
-            nn.BatchNorm1d(ch_base * 4 * 4),
+            nn.ConvTranspose2d(ch_base * 4, ch_base * 4, kernel_size=3, stride=2, padding=1, output_padding=1),
+            # 4x4
+            nn.BatchNorm2d(ch_base * 4, momentum=bn_momentum),
             nn.ReLU(),
-            Reshape((ch_base, 4, 4)),
-            # (dense_dim, 4, 4)
-            nn.Upsample(size=(8, 8)),
-            nn.Conv2d(ch_base, ch_base * 2, kernel_size=3, stride=1, padding=1),
-            nn.BatchNorm2d(ch_base * 2),
+            nn.ConvTranspose2d(ch_base * 4, ch_base * 4, kernel_size=3, stride=2, padding=1, output_padding=1),
+            # 8x8
+            nn.BatchNorm2d(ch_base * 4, momentum=bn_momentum),
+            nn.ReLU(),
+            nn.ConvTranspose2d(ch_base * 4, ch_base * 4, kernel_size=3, stride=2, padding=1, output_padding=1),
+            # 16x16
+            nn.BatchNorm2d(ch_base * 4, momentum=bn_momentum),
+            nn.ReLU(),
+            nn.ConvTranspose2d(ch_base * 4, ch_base * 2, kernel_size=3, stride=2, padding=1, output_padding=1),
+            # 32x32
+            nn.BatchNorm2d(ch_base * 2, momentum=bn_momentum),
             nn.ReLU(),
 
-            nn.Upsample(size=(16, 16)),
-            nn.Conv2d(ch_base * 2, ch_base * 4, kernel_size=3, stride=1, padding=1),
-            nn.BatchNorm2d(ch_base * 4),
-            nn.ReLU(),
-
-            nn.Upsample(size=(32, 32)),
-            nn.Conv2d(ch_base * 4, ch_out, kernel_size=3, stride=1, padding=1),
+            nn.Conv2d(ch_base * 2, ch_out, kernel_size=3, stride=1, padding=1),
             nn.Tanh()
         )
 
@@ -78,37 +80,39 @@ class SimpleDecoder(nn.Module):
 
 @registry.Module
 class SimpleEncoder(nn.Module):
-    def __init__(self, ch_in=1, n_classes=10, implicit_dim=10, image_resolution=(32, 32), ch_base=16):
+    def __init__(self, ch_in=1, n_classes=10, implicit_dim=10, image_resolution=(32, 32), ch_base=8):
         super().__init__()
         assert image_resolution == (32, 32)
 
         self.n_classes = n_classes
+        bn_momentum = 0.1
 
         self.net = nn.Sequential(
             nn.Conv2d(ch_in, ch_base, kernel_size=3, stride=2, padding=1),
             # 16x16
-            nn.BatchNorm2d(ch_base, momentum=0.1),
+            nn.BatchNorm2d(ch_base, momentum=bn_momentum),
             nn.ReLU(),
             nn.Conv2d(ch_base, ch_base * 2, kernel_size=3, stride=2, padding=1),
             # 8x8
-            nn.BatchNorm2d(ch_base * 2, momentum=0.1),
+            nn.BatchNorm2d(ch_base * 2, momentum=bn_momentum),
             nn.ReLU(),
             nn.Conv2d(ch_base * 2, ch_base * 4, kernel_size=3, stride=2, padding=1),
             # 4x4
-            nn.BatchNorm2d(ch_base * 4, momentum=0.1),
+            nn.BatchNorm2d(ch_base * 4, momentum=bn_momentum),
             nn.ReLU(),
-            nn.Conv2d(ch_base * 4, ch_base * 8, kernel_size=3, stride=1, padding=0),
+            nn.Conv2d(ch_base * 4, ch_base * 4, kernel_size=3, stride=2, padding=1),
             # 2x2
-            nn.BatchNorm2d(ch_base * 8, momentum=0.1),
+            nn.BatchNorm2d(ch_base * 4, momentum=bn_momentum),
             nn.ReLU(),
 
-            Flatten(),  # 2*2*ch_base*8
-            nn.Linear(2 ** 2 * ch_base * 8, n_classes + implicit_dim)
+            Flatten(),
+            nn.Linear(2 ** 2 * ch_base * 4, n_classes + implicit_dim)
         )
 
     def forward(self, x):
         x_encoded = self.net(x)
         x_explicit, x_implicit = x_encoded[:, :self.n_classes], x_encoded[:, self.n_classes:]
+        x_implicit = torch.sigmoid(x_implicit)
         return x_explicit, x_implicit
 
 

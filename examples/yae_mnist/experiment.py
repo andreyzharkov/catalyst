@@ -28,13 +28,23 @@ class YAEDataset(TorchDataset):
 class Experiment(ConfigExperiment):
     @staticmethod
     def get_transforms(stage: str = None, mode: str = None):
-        return transforms.Compose(
-            [
-                transforms.Resize(32),
-                transforms.ToTensor(),
-                transforms.Normalize((0.5, ), (0.5, ))
-            ]
-        )
+        if mode == 'train':
+            return transforms.Compose(
+                [
+                    transforms.Resize(32),
+                    transforms.RandomRotation(15),
+                    transforms.ToTensor(),
+                    transforms.Normalize((0.5, ), (0.5, ))
+                ]
+            )
+        else:
+            return transforms.Compose(
+                [
+                    transforms.Resize(32),
+                    transforms.ToTensor(),
+                    transforms.Normalize((0.5,), (0.5,))
+                ]
+            )
 
     def get_datasets(self, stage: str, **kwargs):
         datasets = OrderedDict()
